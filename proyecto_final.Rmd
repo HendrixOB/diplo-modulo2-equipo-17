@@ -17,14 +17,16 @@ library(RSQLite)
 library(visdat)
 library(ggplot2)
 library(readr)
-library(quanteda)
-library(quanteda.textplots)
+#library(quanteda)
+#library(quanteda.textplots)
 library(tidyr)
 library(stringr)
 library(lubridate)
 library(stringi)
 library(reticulate)
 library(skimr)
+library(naniar)
+library(dplyr)
 conn <- DBI::dbConnect(RSQLite::SQLite(), "vuelos.db")
 ```
 
@@ -1100,3 +1102,299 @@ datos_conj_2 %>%  dplyr::group_by(humid_rank2) %>%
   dplyr::summarise(avg = mean(dep_delay, na.rm = TRUE)) %>% 
   dplyr::arrange(desc(humid_rank2))
 ```
+
+
+## Subsección 2
+
+Se usará el conjunto de datos de encuesta de café
+
+```{r}
+datos_coffee <- readr::read_csv("coffee_ratings.csv")
+```
+
+#### Actividad 0: Realice un análisis de valores faltantes del objeto datos
+
+```{r}
+# Primero, hagamos un análisis simple, para tener más información sobre las variables
+# del dataset de `coffe_ratings.
+
+
+summary(datos_coffee)
+```
+
+```{r}
+ncol(datos_coffee)
+```
+
+Tenemos 1339 observaciones con 43 columnas. Por practicidad y facilidad de la lectura,
+usemos la función `gg_miss_var` de la paquetería naniar. 
+
+```{r}
+naniar::gg_miss_var(datos_coffee)
+``` 
+Como podemos ver, practivamente la variable asociada al número de lote está vacia 
+o con muchos NA`s. A partir de aquí, dado que tenemos 1339 observaciones, 
+tenemos que las demás variables no presentan más del 33% de datos faltantes. 
+
+#### Actividad 1: Crear una columna llamada color2 que se base en los valores de la columna color, que asigne el valor NA si color == NA, "#00FF66" si color == 'Green', "#CCEBC5" si color == 'Bluish-green' y "#BFFFFF" si color == 'Blue-green'
+
+```{r}
+
+datos_coffee <- datos_coffee |> dplyr::mutate(color2 = color |> dplyr::case_match(
+  "Green" ~ "#00FF66",
+  "Bluish-Green" ~ "#CCEBC5",
+  "Blue-Green" ~ "#BFFFFF",
+  .default = NA
+))
+```
+
+
+#### Actividad 2: Crear una columna llamada bag_weight2 que se base en los valores de la columna bag_weight, que sólo contenga el valor numérico de ésta. Es decir, bag_weight2 debe ser numérica. ¿Cuántas observaciones llevaron a ambigüedad para crear esta nueva columna?
+
+Para resolver esta duda, notemos un poco los valores de esta columna. Del primer paso,
+notamos que estamos manipulanto textos.
+```{r}
+datos_coffee$bag_weight
+```
+Por lo mostrado en la terminal, tenemos casos ambiguos como "1 kg,lbs" donde tenemos
+dos sistemas métricos indicando la misma cantidad, lo cual pareciese ambiguo. 
+
+Por lo mismo, procedomos a crear la columna con el valor numerico. Por simplicidad, 
+usaremos un regex para obtener solo el valor numérico.
+
+```{r}
+datos_coffee <- datos_coffee |>
+  dplyr::mutate(bag_weight2 = as.numeric(regmatches(bag_weight,regexpr("[0-9]+",bag_weight))))
+```
+
+```{r}
+sum(is.na(datos_coffee$bag_weight2) & !is.na(datos_coffee$bag_weight))
+```
+
+
+Para saber cuantas llevaron a la ambiguedad antes mencionada por el uso
+de distintos sistmas de medición,
+```{r}
+#foo <- datos_coffee |>
+#  dplyr::mutate(a =
+#                  gsub("[0-9]+\\s*", "", bag_weight) |> #strsplit(",")
+#  )
+
+count_sistema_numericos <- function(a) {
+  gsub("[0-9]+\\s*", "", a) |> strsplit(",") |> unlist() |> length()
+} 
+
+sistemas_numericos <- lapply(datos_coffee$bag_weight, count_sistema_numericos) |> as.numeric()
+
+sistemas_numericos[sistemas_numericos != 1] |> length()
+```
+Tenemos que hay 29 observaciones con la ambiguedad de los sistemas numéricos.
+
+#### Actividad 3: Crear dos columnas llamadas method1 y method2 que se basen en los valores de la columna processing_method, dividiendo en dos partes los valores dicha columna. ¿Cuántas observaciones llevaron a ambigüedad para crear esta nueva columna?
+
+Verifiquemos primero los datos. 
+```{r}
+datos_coffee$processing_method
+```
+Tenemos que los datos a extraer están separados por el character ¨/"
+
+La parte ambigua la obtenemos por los datos faltantes. 
+
+Obtengamos la columnas buscadas. 
+
+```{r}
+datos_coffee <- datos_coffee |> 
+  separate(processing_method, into = c("method1", "method2"), sep = "/", remove = FALSE)
+
+no_ambiguedades <- datos_coffee %>%
+  mutate(n_methods = lengths(strsplit(processing_method, "/"))) %>%
+  filter(n_methods == 2)
+
+nrow(no_ambiguedades)
+
+```
+
+Tenemos que hay 1143 elementos sin ambiguedades porque tienen bien 
+definidos los dos métodos. Por lo tanto, hay 196 ambiguedades. 
+
+#### Actividad 4: Crear tres columnas llamadas expiration_day, expiration_month y expiration_year que se basen en los valores de la columna expiration. ¿Cuántas observaciones llevaron a ambigüedad para crear estas nuevas columnas?
+
+Verifiquemos los datos de la columna `expiration`. 
+
+```{r}
+datos_coffee$expiration |> head(20)
+```
+
+Tenemos que es un formato de fecha por mes, día y año. Por lo que una ambiguedad sería tener alguna obersación que no contenga exactamente estos tres valores. 
+
+
+
+```{r}
+no_ambiguedades <- datos_coffee %>%
+  mutate(n_methods = lengths(strsplit(expiration, " "))) %>%
+  filter(n_methods == 3)
+
+nrow(no_ambiguedades)
+```
+
+De lo cual, obtenemos que no tenemos ambiguedades en este caso. 
+
+Procedemos a crear las columnas correspondientes. 
+
+```{r}
+datos_coffee <- datos_coffee |> 
+  dplyr::mutate(expiration_year =  mdy(expiration) |> year(),
+                expiration_month =  mdy(expiration) |> month(),
+                expiration_day =  mdy(expiration) |> day())
+```
+
+
+#### Actividad 5: Crear dos columnas llamadas harvest_mes y harvest_anio que se basen en los valores de la columna harvest_year, dividiendo en dos partes los valores dicha columna. ¿Cuántas observaciones llevaron a ambigüedad para crear esta nueva columna?
+
+Veamos primero la columna `harvest_year`. 
+
+```{r}
+datos_coffee$harvest_year |> head(1000)
+```
+
+Tenemos diversas ambiguedades como por ejemplo, casos sin mes e intervalos de tiempo. Hasta hay un caso con la palabra `TEST`. 
+
+Por simplicidad, vamos a mapear estos datos con la info que se tiene. Se considerará ambiguo cuando alguno de los datos (año o mes) esté ausente. 
+
+```{r}
+
+get_maybe_year <- function(s) {
+  maybe_year <- regmatches(s,regexpr("[0-9]{4}",s)) # Consideramos solo el primer año que aparezca
+  if( maybe_year |> identical(character(0))) {
+    NA
+  } else {
+    maybe_year
+  }
+}
+
+get_maybe_month <- function(s) {
+  maybe_match <- regmatches(s,regexpr("[a-zA-Z]+",s)) # Consideramos solo el primer mes que aparezca
+  if( maybe_match |> identical(character(0))) {
+    NA
+  } else {
+    maybe_match
+  }
+}
+
+#Agregamos los datos 
+datos_coffee$harvest_anio <- lapply(datos_coffee$harvest_year, get_maybe_year) |> unlist()
+datos_coffee$harvest_mes <- lapply(datos_coffee$harvest_year, get_maybe_month) |> unlist()
+
+ambiguas <- datos_coffee %>%
+  filter(is.na(harvest_anio) | is.na(harvest_mes))
+
+nrow(ambiguas)
+```
+
+En este caso, tenemos 1319 elementos ambiguos donde no conocemos o el año o el mes. 
+
+
+#### Actividad 6: Elabore una visualización con {ggplot2} que identifique alguna relación entre las columnas total_cup_points, acidity y color2 de tal forma que se puedan identificar los colores de la variable color2. Es decir, debemos ver los colores, "#00FF66", "#CCEBC5" y "#BFFFFF".
+
+```{r}
+
+numero_completo <- function(x) format(x, big.mark = ",", scientific = FALSE)
+
+datos_coffee |> filter(acidity > 0 & total_cup_points > 0 ) |>  mutate(color_label = as.factor(color2)) |>
+ggplot(aes(x = acidity, y = total_cup_points, color = color_label)) +
+  geom_point() +
+   scale_x_continuous(labels = numero_completo, transform = "log10") +
+  scale_color_manual(values=c("#00FF66", "#BFFFFF",  "#CCEBC5", "#000000")) + 
+  labs(color = "Color en hexagecimal") + 
+  scale_y_continuous(labels = numero_completo, transform = "log10") +
+  labs(title = "Relación entre Total Cup Points, Acidity y Color2")
+```
+
+Podemos notar que hay una correlación positiva entre la columna `acidity` y `total_cup_points`. 
+
+#### Actividad 7: Elabore una visualización de densidad con {ggplot2} de la variable bag_weight2 diferenciando a los valores de species.
+
+```{r}
+datos_coffee |> 
+  filter(bag_weight2 > 0) |>
+ggplot(aes(x = bag_weight2, fill = species)) +
+  scale_x_continuous(labels = numero_completo, transform = "log10") +
+  geom_density(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Densidad de bag_weight2 por species", fill = "Especie")
+```
+
+```{r}
+#Solo tenemos dos tipos de especies
+datos_coffee$species |> unique()
+
+#Tenemos 4 observacion con valor 0. Por simplicidad, las vamos a omitir. 
+datos_coffee$bag_weight2[datos_coffee$bag_weight2 == 0] |> length()
+```
+
+#### Actividad 8: Elabore una visualización que relacione el año/mes de expiración con el total_cup_points sólo de los granos mexicanos, brasileños, colombianos y guatemaltecos.
+
+```{r}
+#Checar paises de origen
+#datos_coffee$country_of_origin |> unique()
+paises_validos <- c("Mexico", "Brazil", "Colombia", "Guatemala")
+
+q <- datos_coffee |>
+  filter(country_of_origin %in% paises_validos) |>
+  ggplot(aes(x = interaction(expiration_year), y = total_cup_points, color = country_of_origin)) +
+  ggtitle("Total de cup points por año y país") + 
+  geom_boxplot() +
+  facet_wrap(~country_of_origin) +
+   labs(y = "Total de puntos cup", x = "Año", color = "Pais de origen") 
+
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+q <- datos_coffee |>
+  filter(country_of_origin %in% paises_validos) |>
+  ggplot(aes(x = interaction(expiration_month), y = total_cup_points, color = country_of_origin)) +
+  ggtitle("Total de cup points por mes y país") + 
+  geom_boxplot() +
+  facet_wrap(~country_of_origin) +
+   labs(y = "Total de puntos cup", x = "Mes", color = "Pais de origen") 
+
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+De ambas partes, podemos ver como Brsil y Colombia tienes puntajes menos variables. 
+
+
+#### Actividad 9: Elabore una visualización con {ggplot2} que relacione el mes de expiración con el altitude_mean_meters, altitude_low_meters y altitude_high_meters sólo de los granos mexicanos, brasileños, colombianos y guatemaltecos de los años de expiración 2016 y 2017.
+
+```{r}
+datos_coffee |>
+  filter(country_of_origin %in% paises_validos) |> # Por pais
+  filter(2016 <= expiration_year &  expiration_year <= 2017) |>
+ggplot(aes(x = interaction(expiration_month))) +
+  geom_point(aes(y = altitude_low_meters, color = "Low"), alpha = 1) +
+  geom_point(aes(y = altitude_mean_meters, color = "Mean"), alpha = 1) +
+  geom_point(aes(y = altitude_high_meters, color = "High"), alpha = 1) +
+  scale_color_manual(values=c("red", "black",  "blue")) +
+  facet_wrap(~country_of_origin) +
+  labs(title = "Alturas por mes de expiración (2016 y 2017)", y = "Altitud (m)", color = "Tipo de Altura")
+```
+
+
+#### Actividad 10: Elabore una visualización con {ggplot2} que relacione el aftertaste, acidity, body y species en un mismo canvas.
+
+Como las columnas "aftertaste", "acidity"y "body" están sobre el mismo rango de valores, conviene hacer un boxplot por cada columna y
+separarla por las especies. 
+
+```{r}
+
+datos_long <- pivot_longer(datos_coffee, cols = c("aftertaste", "acidity", "body"), names_to = "variable_pivote", values_to = "valor")
+
+ggplot(datos_long, aes(x = species, y = valor, fill = species)) +
+  geom_boxplot() +
+  facet_wrap(~variable_pivote) +
+  theme_minimal() +
+  labs(y = "Valor", x = "", fill = "Especie") +
+  labs(title = "Comparación por species: Aftertaste, Acidity, Body")
+```
+
