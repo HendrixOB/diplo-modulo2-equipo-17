@@ -5,7 +5,7 @@ En este proyecyo se busca realizar el analisis de diferentes bases de datos, en 
 
 ## Vuelos de NYC
 
-El objetivo es analizar patrones y factores que influyen en los retrasos de vuelos desde NYC, aplicando habilidades de manipulación de datos en R y SQL.
+El objetivo es analizar patrones y factores que influyen en los retrasos de vuelos desde la ciudad de Nueva York, aplicando habilidades de manipulación de datos en R y SQL.
 
 ## Calidad del café
 
