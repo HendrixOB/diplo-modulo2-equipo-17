@@ -17,8 +17,8 @@ library(RSQLite)
 library(visdat)
 library(ggplot2)
 library(readr)
-#library(quanteda)
-#library(quanteda.textplots)
+library(quanteda)
+library(quanteda.textplots)
 library(tidyr)
 library(stringr)
 library(lubridate)
@@ -1396,5 +1396,422 @@ ggplot(datos_long, aes(x = species, y = valor, fill = species)) +
   theme_minimal() +
   labs(y = "Valor", x = "", fill = "Especie") +
   labs(title = "Comparación por species: Aftertaste, Acidity, Body")
+```
+
+## Subsección 3 
+Analizando letras de canciones
+Se utilizarán los archivos contenidos en la carpeta comprimida canciones.zip.
+
+
+
+```{r}
+#Definimos los datos con los que vamos a trabajar
+datos_ariana_grande <- read.csv("ArianaGrande.csv")
+datos_beyonce <- read.csv("Beyonce.csv")
+datos_billie_ellish <- read.csv("BillieEilish.csv")
+datos_rihanna <- read.csv("Rihanna.csv")
+datos_lady_gaga <- read.csv("LadyGaga.csv")
+datos_drake <- read.csv("Drake.csv")
+datos_justin_bieber <- read.csv("JustinBieber.csv")
+datos_eminem <- read.csv("Eminem.csv")
+datos_ed_sheeran <- read.csv("EdSheeran.csv")
+datos_post_malone <- read.csv("PostMalone.csv")
+datos_BTS <- read.csv("BTS.csv")
+```
+
+
+```{r}
+#Definimos una función para generar las nubes de palabras
+#En el argumento utilizaremos: 
+#último_album:el df del último album,
+#palabras_sinsentido: Un vector las palabras que no encontremos con sentido que sean especificas que no hemos podido eliminar con el tratamiento previo. 
+#en caso de no ver necesario estas palabras simplemente dejar un vector vacio (sirve para la primera ejecución)
+#maximo_palabras: Un número que sirva como máximo de palabras en la nube
+#paleta_color_rcolorbrewer: Un string con la paleta de color de RColorBrewer preferida
+
+nube_palabras <- function(ultimo_album, palabras_sinsentido, maximo_palabras, paleta_color_rcolorbrewer){
+#Escogemos la columna donde estan las letras
+   ultimo_album$Lyric %>% 
+#Utilizamos la librerías quanteda para separar el texto y
+#eliminar proposiciones, articulos, números, signos de puntuación en inglés (el idioma de la 
+#la mayoría de las canciones)
+        tokens() %>% tokens_remove(stopwords("english")) %>% tokens_remove( palabras_sinsentido ) %>% 
+    tokens(remove_separators = TRUE,
+                  remove_punct = TRUE,
+                  remove_symbols = TRUE,
+                  remove_numbers = TRUE)%>%
+#hacemos una tabla de frecuencias de las palabras queridas y generamos la nube de palabras
+#escogemos parametros que consideramos esteticos de la nube de palabras.
+    dfm() %>%
+    textplot_wordcloud(min_count = 5,
+                     max_words = maximo_palabras,
+                     font = "mono",
+                    color =  RColorBrewer::brewer.pal(8, paleta_color_rcolorbrewer),
+                     comparison = FALSE)
+
+}
+```
+
+
+```{r}
+#Definimos una función para encontrar el nombre del último disco.
+#Consideramos el último disco aquel valor que este en la fila de albúm que sea el más reciente en fecha que tenga más de 5 canciones
+#El argumento es: El dataframe con el que vamos a trabajar.
+encontrar_album <- function(df) {
+#Separamos las columnas de interés, hacemos un formato de fecha estandarizado la columna Date y además ordenamos del más reciente 
+#al más viejo para encontrar el primero que se repita 5 veces
+  df <- df %>% mutate(Date= ymd(as.Date(Date))) %>% select(Album,  Date, Lyric) %>% arrange(desc(Date))
+#escogemos la columna cuyo valor es que queremos observar y eliminamos valores de album vacios o NAs
+  col_values <- df$Album
+  col_values <- col_values[!is.na(col_values) & col_values != ""]
+#hacemos un ciclo for para ir recorriendo cada fila y que avance el contador hasta llegar a 5.
+  contador <- 1
+  for (i in 2:length(col_values)) {
+    if (col_values[i] == col_values[i - 1]) {
+      contador <- contador + 1
+    } else {
+      contador <- 1
+    }
+#Regresa el valor del nombre del disco según nuestro criterio
+    if (contador == 5) {
+      return(col_values[i])
+    }
+  }
+#Regresa un NA en caso de no encontrar un valor con nuestro criterio
+  return(NA)  
+}
+
+```
+
+
+
+### Actividad 1.
+
+Haga una nube de palabras de las canciones del último disco de Ariana Grande, Beyonce, Billie Eilish, Rihanna y Lady Gaga por separado, i.e. una nube por artista.
+
+#### Ariana Grande
+
+```{r}
+nombre_album_ariana <- datos_ariana_grande %>% encontrar_album()
+nombre_album_ariana
+```
+
+```{r}
+ultimo_album_ariana  <- datos_ariana_grande %>% filter(Album ==nombre_album_ariana) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_ariana,c("hey","oh","yeah") , 100, "Paired")
+```
+
+
+#### Beyoncé.
+
+```{r}
+nombre_album_beyonce <- datos_beyonce %>% encontrar_album()
+```
+
+```{r}
+ultimo_album_beyonce <- datos_beyonce %>% filter(Album ==nombre_album_beyonce) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_beyonce,c("hey","oh","yeah") , 100, "Paired")
+```
+
+
+#### Billie Eilish 
+
+```{r}
+nombre_album_billie <- datos_billie_ellish %>% encontrar_album()
+nombre_album_billie
+```
+
+```{r}
+ultimo_album_billie <- datos_billie_ellish %>% filter(Album ==nombre_album_billie) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_billie,c("hey","oh","yeah") , 100, "Paired")
+```
+
+#### Rihanna 
+
+```{r}
+nombre_album_rihanna <- datos_rihanna %>% encontrar_album()
+nombre_album_rihanna
+```
+
+```{r}
+ultimo_album_rihanna <- datos_rihanna %>% filter(Album ==nombre_album_rihanna) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_rihanna,c("hey","oh","yeah") , 100, "Paired")
+```
+
+
+#### Lady Gaga
+
+
+
+```{r}
+nombre_album_lady_gaga <- datos_lady_gaga %>% encontrar_album()
+nombre_album_lady_gaga
+```
+
+```{r}
+ultimo_album_lady_gaga <- datos_lady_gaga %>% filter(Album ==nombre_album_lady_gaga) %>% select(Artist, Title, Album, Lyric)
+ultimo_album_lady_gaga
+ultimo_album_ariana
+```
+
+```{r}
+ultimo_album_lady_gaga <- datos_lady_gaga %>% filter(Album ==nombre_album_lady_gaga)
+nube_palabras(ultimo_album_lady_gaga,c("hey","oh","yeah","ooh","ah") , 100, "Paired")
+```
+
+
+### Actividad 2
+
+Haga una nube de palabras de las canciones del último disco de Ariana Grande, Beyonce, Billie Eilish, Rihanna y Lady Gaga combinados, i.e. una única nube.
+
+```{r}
+artistas <- bind_rows(ultimo_album_lady_gaga, ultimo_album_rihanna, ultimo_album_beyonce,ultimo_album_billie,ultimo_album_ariana)
+```
+
+```{r}
+nube_palabras(artistas,c("hey","oh","yeah","ooh","ah","mmm","um") , 500, "Set1")
+```
+
+### Actividad 3
+
+Haga una nube de palabras de las canciones del último disco de Drake, Justin Bieber, Eminem, Ed Sheeran y Post Malone por separado, i.e. una nube por artista.
+
+#### Drake
+```{r}
+nombre_album_drake <- datos_drake %>% encontrar_album()
+nombre_album_drake
+```
+
+```{r}
+ultimo_album_drake <- datos_drake %>% filter(Album ==nombre_album_drake) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_drake,c("hey","oh","yeah","ooh","ah","ayy") , 100, "Dark2")
+```
+
+#### Justin Bieber
+
+```{r}
+nombre_album_justin <- datos_justin_bieber %>% encontrar_album() 
+nombre_album_justin
+```
+
+```{r}
+ultimo_album_justin <- datos_justin_bieber %>% filter(Album ==nombre_album_justin) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_justin,c("hey","oh","yeah","ooh","ah","ayy") , 100, "Dark2")
+```
+
+
+#### Eminem
+
+```{r}
+nombre_album_eminem <- datos_eminem %>% encontrar_album()
+nombre_album_eminem
+```
+
+```{r}
+ultimo_album_eminem <- datos_eminem %>% filter(Album ==nombre_album_eminem) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_eminem,c("hey","oh","yeah","ooh","ah","ayy") , 100, "Dark2")
+```
+
+
+#### Ed Sheeran
+
+```{r}
+nombre_album_ed <- datos_ed_sheeran %>% encontrar_album()
+nombre_album_ed
+```
+
+```{r}
+ultimo_album_ed <- datos_ed_sheeran %>% filter(Album ==nombre_album_ed) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_ed,c("hey","oh","yeah","ooh","ah","ayy") , 100, "Dark2")
+```
+
+
+#### Post Malone
+```{r}
+nombre_album_post <- datos_post_malone %>% encontrar_album()
+nombre_album_post
+```
+
+```{r}
+ultimo_album_post <- datos_post_malone %>% filter(Album ==nombre_album_post) %>% select(Artist, Title, Album, Lyric)
+nube_palabras(ultimo_album_post,c("hey","oh","yeah","ooh","ah","ayy") , 100, "Dark2")
+```
+
+
+
+### Actividad 4  
+
+Haga una nube de palabras de las canciones del último disco de Drake, Justin Bieber, Eminem, Ed Sheeran y Post Malone combinados, i.e. una única nube.
+
+```{r}
+artistos <- bind_rows(ultimo_album_drake, ultimo_album_justin, ultimo_album_eminem, ultimo_album_ed, ultimo_album_post)
+```
+```{r}
+nube_palabras(artistos,c("hey","oh","yeah","ooh","ah","mmm","wow") , 500, "Set2")
+```
+
+
+
+### Actividad 5
+
+Haga una nube de palabras de las canciones de los últimos 3 discos de BTS combinados, i.e. una única nube.
+
+```{r}
+datos_BTS %>% mutate(Date= ymd(as.Date(Date))) %>% select(Album,  Date, Lyric) %>% arrange(desc(Date))
+```
+
+```{r}
+ultimo_album_BTS1 <- datos_BTS %>% filter(Album =="BE")
+ultimo_album_BTS2 <- datos_BTS %>% filter(Album == "Dynamite (NightTime Version)")
+ultimo_album_BTS3 <- datos_BTS %>% filter(Album == "MAP OF THE SOUL: 7 ~ The Journey ~")
+ultimo_album_BTS_completo <- bind_rows(ultimo_album_BTS1, ultimo_album_BTS2, ultimo_album_BTS3)
+nube_palabras(ultimo_album_BTS_completo,c("hey","oh","yeah","ooh","ah","ayy") , 500, "RdYlGn")
+```
+
+Para hacer más fácil el análisis posterior vamos a limpiar las canciones de los discos que este vacías en la columna de Lyric
+
+```{r}
+letras_limpias <- ultimo_album_BTS_completo %>%
+  filter(!is.na(Lyric)) %>%
+  mutate(Lyric = gsub("\n", " ", Lyric))  
+```
+
+```{r}
+#Hagamos una función para analizar de nuestras letras que tipos de caracter codificados   UNICODE (https://symbl.cc/es/unicode-table/) y como se expresan como una expresión regex y como argumento solo queremos usar una sola columna.
+#Como además al correr esta función solamente con coreano no hemos encontrado otros caracteres que parecen asiaticos hemos decidido añadir otros idiomaas de la región
+#Vamos a usar la librería stri para encontrar los caracteres y poder contarlos.
+contar_simbolos <- function(texto) {
+  #hacemos una lista de los caracteres que queremos identificar
+  categorias <- list(
+    Latin      = "[A-Za-z]",
+    Numeros    = "[0-9]",
+    Coreano    = "[\\uAC00-\\uD7AF]",
+    JaponesHiragana   = "[\\u3040-\\u309F]",
+    JaponesKatakana   = "[\\u30A0-\\u30FF]",
+    Chino      = "[\\u4E00-\\u9FFF]",
+    Espacios = "[[:space:]]",
+    Puntuacion = "[[:punct:]]"
+   
+  )
+  #usamos la función sapply para divirlo por categorias y usamos la función stri_count_regex
+  conteos <- sapply(categorias, function(patron) {
+    sum(stri_count_regex(texto, patron))
+  })
+}
+
+
+texto <-  letras_limpias$Lyric
+
+
+#Estas líneas nos indican simplemente que tantos caracteres no hemos identificado respecto al total, no son muchos.
+simbolos_encontrados <- contar_simbolos(texto) %>% sum() 
+simbolos_totales <- texto %>% nchar() %>% sum()
+
+simbolos_encontrados  - simbolos_totales
+```
+
+
+
+```{r}
+#Hacemos otra función para poder extraer los simbolos por tipo usando su expresión regular (regex) y un texto. Esto es así para que se puedan traducir por idioma cada uno de los caracteres.
+
+extraer_simbolos <- function(texto, expresion_regex_idioma) {
+  # Se usa la función stri_extract_all_regex() para extraerlos del texto según su regex
+  simbolos_idioma <- stri_extract_all_regex(texto, expresion_regex_idioma)
+
+  simbolos_idioma <- simbolos_idioma[!sapply(simbolos_idioma, function(x) all(is.na(x)))]
+  simbolos_limpios <- na.omit(unlist(simbolos_idioma))
+
+  # Por comodidad los unimos
+  resultado <- paste(simbolos_limpios, collapse = " ")
+
+  return(resultado)
+}
+
+```
+
+
+```{r}
+texto_regular <- extraer_simbolos(letras_limpias$Lyric,  "[A-Za-z]+")
+texto_coreano <- extraer_simbolos(letras_limpias$Lyric,  "[\\uAC00-\\uD7AF]+")
+texto_japones_h <- extraer_simbolos(letras_limpias$Lyric,  "[\\u3040-\\u309F]+" )
+texto_japones_k <- extraer_simbolos(letras_limpias$Lyric,   "[\\u30A0-\\u30FF]+" )
+texto_chino <- extraer_simbolos(letras_limpias$Lyric,   "[\\u4E00-\\u9FFF]+" )
+
+```
+
+Esta línea es por si la forma de traducción utilizada provoca algún error en particular
+
+```{r}
+#py_install("googletrans==4.0.0-rc1")
+```
+
+Invocamos un chunk de Python puesto que en R las librerias que permiten traducir necesitan un API, así que utilizamos un librería de python para poder traducir cada texto según su idioma con a  lo máximo 15 mil cáracteres por "bloque" de texto.
+
+```{python}
+#importamos la libreria
+from googletrans import Translator
+
+#Hacemos una función para poder traducir cada texto según su idioma
+def traducir_texto(text, target_lang):
+    traductor = Translator()
+    #Partimos los bloques de texto para poder aprovechar la gratuidad de la libreria
+    partes = [text[i:i+15000] for i in range(0, len(text), 15000)]
+    partes_traducidas = []
+    for parte_trad in partes_traducidas:
+        traducido = translator.translate(partes, dest=target_lang).text
+        partes_traducidas.append(traducido)
+    return ' '.join(parte_trad)
+```
+
+```{r}
+# "Traducimos" los objetos de R en objetos de Python para poder utilizar la función de traducción
+py$texto_coreano <- texto_coreano  
+py$texto_japones_h <- texto_japones_h 
+py$texto_japones_k <- texto_japones_k 
+py$texto_chino <- texto_chino  
+```
+
+```{python}
+#Traducimos a nuestro idioma deseado
+traducido_coreano = translate_text(r.texto_coreano, 'en')
+traducido_texto_japones_h = translate_text(r.texto_japones_h, 'en')
+traducido_texto_japones_k = translate_text(r.texto_japones_k, 'en')
+traducido_chino = translate_text(r.texto_chino, 'en')
+```
+
+```{r}
+#Regresamos los objetos traducidos de python a objetos de R
+traducido_coreano <- py$traducido_coreano
+traducido_texto_japones_h <- py$traducido_texto_japones_h
+traducido_texto_japones_k <- py$traducido_texto_japones_k
+traducido_chino <- py$traducido_chino
+```
+
+```{r}
+BTS_texto <-c(texto_regular, traducido_coreano, traducido_texto_japones_h, traducido_texto_japones_k, traducido_chino)
+```
+
+```{r}
+#Generamos la nube de palabras usando el texto traducido.
+
+BTS_texto %>% 
+#Utilizamos la librerías quanteda para separar el texto y
+#eliminar proposiciones, articulos, números, signos de puntuación en inglés (el idioma de la 
+#la mayoría de las canciones)
+        tokens() %>% tokens_remove(stopwords("english")) %>% tokens_remove(c("oh","v","m","hoo","yeah")) %>% 
+    tokens(remove_separators = TRUE,
+                  remove_punct = TRUE,
+                  remove_symbols = TRUE,
+                  remove_numbers = TRUE)%>%
+#hacemos una tabla de frecuencias de las palabras queridas y generamos la nube de palabras
+#escogemos parametros que consideramos esteticos de la nube de palabras.
+    dfm() %>%
+    textplot_wordcloud(min_count = 5,
+                     max_words = 500,
+                     font = "mono",
+                    color =  RColorBrewer::brewer.pal(8, "RdYlGn"),
+                     comparison = FALSE)
+
 ```
 
