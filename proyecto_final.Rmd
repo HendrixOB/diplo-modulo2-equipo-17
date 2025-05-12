@@ -15,17 +15,22 @@ library(DBI)
 library(dbplyr)
 library(RSQLite)
 library(visdat)
+library(ggplot2)
+library(readr)
+library(quanteda)
+library(quanteda.textplots)
+library(tidyr)
+library(stringr)
+library(lubridate)
+library(stringi)
+library(reticulate)
 library(skimr)
-
-
 conn <- DBI::dbConnect(RSQLite::SQLite(), "vuelos.db")
 ```
 
 ### Intrucciones colaborador 1 
 
 Desde su máquina crear chunks de código R en el archivo "proyecto_final.Rmd" (que obtuvo del Administrador) que muestre el número de tablas y sus nombres de la base de datos "vuelos"; además, crear un objeto en R, un por cada tabla de la base de datos. Hacer commit y push del código al repositorio del administrador y hacer un pull request.
-
-
 
 ```{r}
 tablas <- dbListTables(conn) 
@@ -141,3 +146,28 @@ vuelo %>%
   skim() %>%
   yank("character")
 ```
+
+### Comentario Colaborador 2:
+
+#### Subconjunto 1: Aerol
+
+El subconjunto tiene pocos datos y ninguna perdida de información en esta tabla. El análisis numérico no nos permite obtener mucha información y esto se debe a que esta tabla contiene únicamente variables son categoricas. El  nombre más largo tiene 27 caracteres, el más corto solo 9 caracteres y todas las abreviaturas son de un mismo largo lo cual nos indica que esto es consistente con ser  únicas. 
+
+#### Subconjunto 2: Aerop
+
+Se puede observar que se tienen variables tanto categóricas como numéricas que nos permiten hacer ambos analisis y diferenciar a las columnas que a pesar de tener nombres similares (tz y timezone) se pude observar del análisis que son diferentes puesto que tz refiere a una variable númerica y timezone a una categórica, en esta última hay una ligera perdida de información del nombre de la zona con ese huso horario pero esto podría relacionarse (deducirse) con la variable númerica correspondiente.  Las variables númericas nos dan información sobre donde se encuentran los aeropuertos y el análisis nos permite observar de que parte estan concentrados la mayor cantidad de aeropuertos en nuestros datos. 
+Además de las variables categoricas se puede notar que los nombres de los aeropuertos no son únicos aunque deben ser aeropuertos diferentes pues tienen abreviaturas diferentes (únicas) y 9 zonas horarias en nuestros datos.
+
+#### Subconjunto 3: Avio
+
+No hay datos de tipo categorico faltantes, además este análisis nos hace notar que el número de cola para cada avión es único, que en solo tenemos 3 tipos diferentes de aviones, 6 tipos de motores, 127 modelos y 35 fabricantes. En las variables númericas la velocidad del avión es una "variable" con el 99%  de datos faltantes. La mayoría de los aviones fueron fabricados alrededor del año 2000, tiene 2 motores y tenemos aviones en nuestros datos que van de los 2 a los 450 asientos. 
+
+
+#### Subconjunto 5: Clim
+
+Este subconjunto solo tiene 1 variable categórica que no aporta demasiada información. Por otro lado, las variables númericas nos dan mucha información acerca de cuales son las condiciones climaticas más favorables para efectuar un vuelo en la zona del mundo de nuestros datos. En particular la variable que contiene observaciones de las rafagas del viento tiene muy pocos datos. La mayor cantidad de datos en este subconjunto son del año 2013, la temperatura de la mayoría de los vuelos no es caliente (y además la temperatura no esta dada en grados Celsius), los vuelos se dan en condiciones donde no hay precipitación (lluvia) en su amplia mayoría, al menos la mitad de los vuelos se efectuan con menos de 61.7% de humedad relativa.
+
+
+#### Subconjunto 5: Vuelo
+
+Como el subconjunto tiene demasiados datos puede que este tipo de visualizaciones sea inadecuada para conocer los datos. De las variables categoricas observamos que se repiten variables de subconjuntos pasados que nos sirven para identificar los vuelos, pero existen varios (2512) vuelos donde no se registro el número de cola del avión, por otro lado las aerolíneas son una variable que guarda sentido con lo visto en el subconjunto 1 respetando su únicidad. En el caso de las variables numéricas, por lo general los vuelos son de 93.6 minutos, los vuelos no rebasan las 685 minutos de vuelo (tiempo en aire). Los vuelos en su mayoria recorren 1040 millas y de la misma manera que en el subconjunto 4 la mayoría de los datos son del año 2013.
