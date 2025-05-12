@@ -1758,10 +1758,10 @@ def traducir_texto(text, target_lang):
     #Partimos los bloques de texto para poder aprovechar la gratuidad de la libreria
     partes = [text[i:i+15000] for i in range(0, len(text), 15000)]
     partes_traducidas = []
-    for parte_trad in partes_traducidas:
-        traducido = translator.translate(partes, dest=target_lang).text
+    for parte in partes:
+        traducido = traductor.translate(parte, dest=target_lang).text
         partes_traducidas.append(traducido)
-    return ' '.join(parte_trad)
+    return ' '.join(partes_traducidas)
 ```
 
 ```{r}
@@ -1774,10 +1774,10 @@ py$texto_chino <- texto_chino
 
 ```{python}
 #Traducimos a nuestro idioma deseado
-traducido_coreano = translate_text(r.texto_coreano, 'en')
-traducido_texto_japones_h = translate_text(r.texto_japones_h, 'en')
-traducido_texto_japones_k = translate_text(r.texto_japones_k, 'en')
-traducido_chino = translate_text(r.texto_chino, 'en')
+traducido_coreano = traducir_texto(r.texto_coreano, 'en')
+traducido_texto_japones_h = traducir_texto(r.texto_japones_h, 'en')
+traducido_texto_japones_k = traducir_texto(r.texto_japones_k, 'en')
+traducido_chino = traducir_texto(r.texto_chino, 'en')
 ```
 
 ```{r}
